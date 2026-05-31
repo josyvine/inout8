@@ -95,6 +95,17 @@ public class AttendanceProfileDialog extends DialogFragment {
                 Toast.makeText(getContext(), "No data available to export.", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // NEW: Export button for dynamic PDF generation
+        binding.btnExportPdf.setOnClickListener(v -> {
+            if (fullMonthList != null && !fullMonthList.isEmpty()) {
+                String fileName = employee.getName().replace(" ", "_") + "_" + 
+                                 new SimpleDateFormat("MMM_yyyy", Locale.US).format(Calendar.getInstance().getTime());
+                PdfExportHelper.exportAttendanceToPdf(requireContext(), employee, fullMonthList, fileName);
+            } else {
+                Toast.makeText(getContext(), "No data available to export.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void setupHeader() {
