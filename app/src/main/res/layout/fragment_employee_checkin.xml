@@ -141,6 +141,52 @@
 
     </LinearLayout>
 
+    <!-- NEW: HORIZONTAL SHIFT TIME HINTS CONTAINER -->
+    <!-- Matches structural weights & margins of layout_buttons for flawless center alignment [2] -->
+    <LinearLayout
+        android:id="@+id/layout_shift_hints"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:weightSum="3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/layout_buttons">
+
+        <!-- Shift Start Time display under IN button [2] -->
+        <TextView
+            android:id="@+id/tv_shift_start_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:gravity="center"
+            android:text="Shift: --:--"
+            android:textColor="@android:color/darker_gray"
+            android:textSize="11sp" />
+
+        <!-- Spacer placeholder aligned below the transit action button -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="4dp" />
+
+        <!-- Shift End Time display under OUT button [2] -->
+        <TextView
+            android:id="@+id/tv_shift_end_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:gravity="center"
+            android:text="Shift: --:--"
+            android:textColor="@android:color/darker_gray"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
     <!-- AdMob Banner Footer (New) -->
     <com.google.android.gms.ads.AdView
         android:id="@+id/adView_checkin"
