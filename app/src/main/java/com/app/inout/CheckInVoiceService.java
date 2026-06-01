@@ -1,7 +1,14 @@
 package com.inout.app;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
@@ -9,6 +16,7 @@ import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
 import java.util.Locale;
 
@@ -20,6 +28,8 @@ public class CheckInVoiceService extends Service implements TextToSpeech.OnInitL
 
     private static final String TAG = "CheckInVoiceService";
     private static final String UTTERANCE_ID = "InOutSpeechUtteranceId";
+    private static final String CHANNEL_ID = "shift_reminder_channel";
+    private static final int FOREGROUND_NOTIFICATION_ID = 1002; // Unique ID separate from status receiver
 
     private TextToSpeech tts;
     private String reminderType;
@@ -45,6 +55,9 @@ public class CheckInVoiceService extends Service implements TextToSpeech.OnInitL
 
         Log.d(TAG, "Voice service started with type: " + reminderType);
 
+        // Promote service to a Foreground Service to bypass Android 12+ background launch blocks [4]
+        startForegroundServiceNotification();
+
         // If engine is already loaded, speak immediately
         if (isTtsInitialized) {
             speakPhrase();
@@ -52,6 +65,40 @@ public class CheckInVoiceService extends Service implements TextToSpeech.OnInitL
 
         // Return START_NOT_STICKY so the system does not recreate the voice service if killed [3]
         return START_NOT_STICKY;
+    }
+
+    /**
+     * Promotes the service to a foreground process to comply with modern OS background rules [4].
+     */
+    private void startForegroundServiceNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Shift Reminders",
+                    NotificationManager.IMPORTANCE_LOW // Low importance so it speaks without secondary notification tones
+            );
+            channel.setDescription("System notifications for automated shift vocal warnings");
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+
+        // Construct standard low-priority sticky notification for the status bar tray
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.inout)
+                .setContentTitle("Voice Reminder Active")
+                .setContentText("InOut is currently speaking an attendance reminder...")
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .build();
+
+        // Request FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK on Android 10 (API 29)+ for audio output compliance [4]
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        } else {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification);
+        }
     }
 
     @Override
