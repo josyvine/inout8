@@ -11,9 +11,15 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.inout.app.models.AttendanceRecord;
+import com.inout.app.utils.TimeUtils;
+
 /**
  * BroadcastReceiver triggered by AlarmManager to notify employees
  * exactly one minute before their assigned shift check-in window opens [2].
+ * UPDATED: Uses goAsync() to verify the attendance state in Firestore before sounding false alarms.
  */
 public class CheckInAlarmReceiver extends BroadcastReceiver {
 
@@ -23,7 +29,7 @@ public class CheckInAlarmReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "Alarm received: Preparing shift start notification");
+        Log.d(TAG, "Alarm received: Checking verification constraints");
 
         // Extract the exact type of alarm triggered [2]
         String reminderType = intent.getStringExtra("reminder_type");
@@ -31,6 +37,76 @@ public class CheckInAlarmReceiver extends BroadcastReceiver {
             reminderType = "about_to_check_in"; // Standard fallback
         }
 
+        final String finalReminderType = reminderType;
+        final PendingResult pendingResult = goAsync();
+
+        FirebaseAuth mAuth = FirebaseAuth.getInstance();
+        if (mAuth.getCurrentUser() == null) {
+            // Not authenticated, fallback to standard notification immediately
+            fireNotificationAndVoice(context, finalReminderType);
+            pendingResult.finish();
+            return;
+        }
+
+        String uid = mAuth.getCurrentUser().getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        // 1. Fetch user's assigned employee ID dynamically from Firestore
+        db.collection("users").document(uid).get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                String empId = task.getResult().getString("employeeId");
+                
+                if (empId != null && !empId.isEmpty()) {
+                    String dateId = TimeUtils.getCurrentDateId();
+                    String recordId = empId + "_" + dateId;
+
+                    // 2. Fetch today's local-cache/remote attendance record
+                    db.collection("attendance").document(recordId).get().addOnCompleteListener(attTask -> {
+                        boolean skipAlarm = false;
+
+                        if (attTask.isSuccessful() && attTask.getResult() != null && attTask.getResult().exists()) {
+                            AttendanceRecord record = attTask.getResult().toObject(AttendanceRecord.class);
+                            
+                            if (record != null) {
+                                // 3. Analyze if the action for this specific alarm is already completed
+                                if ("about_to_check_in".equals(finalReminderType) || "late_check_in".equals(finalReminderType)) {
+                                    if (record.getCheckInTime() != null && !record.getCheckInTime().isEmpty()) {
+                                        skipAlarm = true; // Employee is already checked in, skip false alarm
+                                    }
+                                } else if ("about_to_check_out".equals(finalReminderType)) {
+                                    if (record.getCheckOutTime() != null && !record.getCheckOutTime().isEmpty()) {
+                                        skipAlarm = true; // Employee is already checked out, skip false alarm
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!skipAlarm) {
+                            fireNotificationAndVoice(context, finalReminderType);
+                        } else {
+                            Log.d(TAG, "Aborting alarm notification: Attendance action already recorded.");
+                        }
+                        pendingResult.finish();
+                    });
+                } else {
+                    fireNotificationAndVoice(context, finalReminderType);
+                    pendingResult.finish();
+                }
+            } else {
+                fireNotificationAndVoice(context, finalReminderType);
+                pendingResult.finish();
+            }
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Constraint check failed, firing fallback alarm", e);
+            fireNotificationAndVoice(context, finalReminderType);
+            pendingResult.finish();
+        });
+    }
+
+    /**
+     * Helper method containing the primary notification builder and background voice engines.
+     */
+    private void fireNotificationAndVoice(Context context, String reminderType) {
         try {
             // 1. Create high-importance channel (Required for Android 8.0+)
             createNotificationChannel(context);
