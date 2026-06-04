@@ -403,10 +403,10 @@ public class EmployeeCheckInFragment extends Fragment {
                             assignedLocation.getRadius());
 
                     if (actionType == ACTION_IN && currentUser.isTraveling()) {
-                        performCheckIn(location, 0, true); 
+                        performCheckIn(location, 0.0, true); 
                     } 
                     else if (inRange) {
-                        float dist = LocationHelper.calculateDistance(
+                        double dist = LocationHelper.calculateDistance(
                                 location.getLatitude(), location.getLongitude(),
                                 assignedLocation.getLatitude(), assignedLocation.getLongitude());
                         
@@ -431,7 +431,7 @@ public class EmployeeCheckInFragment extends Fragment {
         });
     }
 
-    private void performCheckIn(Location loc, float distance, boolean isRemoteStart) {
+    private void performCheckIn(Location loc, double distance, boolean isRemoteStart) {
         String dateId = TimeUtils.getCurrentDateId();
         String recordId = currentUser.getEmployeeId() + "_" + dateId;
 
@@ -475,14 +475,18 @@ public class EmployeeCheckInFragment extends Fragment {
                 .addOnSuccessListener(aVoid -> {
                     binding.progressBar.setVisibility(View.GONE);
                     Toast.makeText(getContext(), "Check-In Success!", Toast.LENGTH_SHORT).show();
+                    
+                    // NEW/CORRECTED LOGIC: Commit state locally immediately to bypass asynchronous synchronization delays
+                    todayRecord = record;
+                    updateUIBasedOnStatus();
                 })
                 .addOnFailureListener(e -> binding.progressBar.setVisibility(View.GONE));
     }
 
-    private void performTransit(Location loc, float distance) {
+    private void performTransit(Location loc, double distance) {
         if (todayRecord == null) return;
 
-        float newTotalDist = todayRecord.getDistanceMeters() + distance;
+        double newTotalDist = todayRecord.getDistanceMeters() + distance;
         String newLocName = assignedLocation.getName();
 
         db.collection("attendance").document(todayRecord.getRecordId())
@@ -495,6 +499,15 @@ public class EmployeeCheckInFragment extends Fragment {
                 .addOnSuccessListener(aVoid -> {
                     binding.progressBar.setVisibility(View.GONE);
                     Toast.makeText(getContext(), "Transit Verified!", Toast.LENGTH_SHORT).show();
+                    
+                    // NEW/CORRECTED LOGIC: Commit state locally immediately to bypass asynchronous synchronization delays
+                    todayRecord.setDistanceMeters(newTotalDist);
+                    todayRecord.setLocationName(newLocName);
+                    todayRecord.setLastVerifiedLocationId(assignedLocation.getId());
+                    if (todayRecord.getMovementLog() != null) {
+                        todayRecord.getMovementLog().add(newLocName);
+                    }
+                    updateUIBasedOnStatus();
                 })
                 .addOnFailureListener(e -> binding.progressBar.setVisibility(View.GONE));
     }
@@ -517,6 +530,14 @@ public class EmployeeCheckInFragment extends Fragment {
                 .addOnSuccessListener(aVoid -> {
                     binding.progressBar.setVisibility(View.GONE);
                     Toast.makeText(getContext(), "Check-Out Success!", Toast.LENGTH_SHORT).show();
+                    
+                    // NEW/CORRECTED LOGIC: Commit state locally immediately to bypass asynchronous synchronization delays
+                    todayRecord.setCheckOutTime(checkOutTime);
+                    todayRecord.setCheckOutLat(loc.getLatitude());
+                    todayRecord.setCheckOutLng(loc.getLongitude());
+                    todayRecord.setTotalHours(totalHrs);
+                    todayRecord.setOvertimeHours(overtimeStr);
+                    updateUIBasedOnStatus();
                 })
                 .addOnFailureListener(e -> binding.progressBar.setVisibility(View.GONE));
     }
