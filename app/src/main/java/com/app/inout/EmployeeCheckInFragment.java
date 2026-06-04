@@ -599,7 +599,7 @@ public class EmployeeCheckInFragment extends Fragment {
     private String getAddressName(Location loc) {
         try {
             Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
-            List = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
+            List<Address> addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
             if (addresses != null && !addresses.isEmpty()) {
                 Address addr = addresses.get(0);
                 String street = addr.getThoroughfare() != null ? addr.getThoroughfare() : "";
