@@ -29,7 +29,7 @@ public class AttendanceRecord {
     
     private String totalHours;
     private String locationName;    // The office name assigned (Destination)
-    private float distanceMeters;   // Distance from target at check-in
+    private double distanceMeters;   // Distance from target at check-in (Changed from float to double)
     
     // TRANSIT LOGIC FIELDS
     private List<String> movementLog; // Stores sequence ["Loc A", "Loc B"]
@@ -180,8 +180,8 @@ public class AttendanceRecord {
     public void setLocationName(String locationName) { this.locationName = locationName; }
 
     @PropertyName("distanceMeters")
-    public float getDistanceMeters() { return distanceMeters; }
-    public void setDistanceMeters(float distanceMeters) { this.distanceMeters = distanceMeters; }
+    public double getDistanceMeters() { return distanceMeters; }
+    public void setDistanceMeters(double distanceMeters) { this.distanceMeters = distanceMeters; }
 
     @PropertyName("movementLog")
     public List<String> getMovementLog() { return movementLog; }
